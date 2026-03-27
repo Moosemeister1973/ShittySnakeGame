@@ -239,22 +239,49 @@
         ];
 
         function drawSnake() {
-            snake.forEach((segment, index) => {
-                const x = segment.x * tileSize;
-                const y = segment.y * tileSize;
+            const maxWidth = tileSize - 2;
+            const minWidth = 4;
 
-                if (index === 0) {
-                    drawRoundedRect(x, y, tileSize, 6, '#2d6a4f');
-                    drawTongue(x, y);
-                    drawEyes(segment, x, y);
-                } else if (index === snake.length - 1) {
-                    // tail - more rounded to look tapered
-                    drawRoundedRect(x + 2, y + 2, tileSize - 4, 8, '#52b788');
-                } else {
-                    // body
-                    drawRoundedRect(x + 1, y + 1, tileSize - 2, 4, '#52b788');
-                }
-            });
+            // draw connections between segments first (so they appear behind)
+            for (let i = 0; i < snake.length - 1; i++) {
+                const curr = snake[i];
+                const next = snake[i + 1];
+                const t = i / snake.length;
+                const width = maxWidth - (maxWidth - minWidth) * t;
+
+                const x1 = curr.x * tileSize + tileSize / 2;
+                const y1 = curr.y * tileSize + tileSize / 2;
+                const x2 = next.x * tileSize + tileSize / 2;
+                const y2 = next.y * tileSize + tileSize / 2;
+
+                ctx.strokeStyle = '#52b788';
+                ctx.lineWidth = width;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            // draw each segment as a circle on top of connections
+            for (let i = snake.length - 1; i >= 0; i--) {
+                const segment = snake[i];
+                const t = i / snake.length;
+                const radius = (maxWidth - (maxWidth - minWidth) * t) / 2;
+                const x = segment.x * tileSize + tileSize / 2;
+                const y = segment.y * tileSize + tileSize / 2;
+
+                ctx.fillStyle = i === 0 ? '#2d6a4f' : '#52b788';
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // draw head features on top
+            const headX = snake[0].x * tileSize;
+            const headY = snake[0].y * tileSize;
+            drawTongue(headX, headY);
+            drawEyes(snake[0], headX, headY);
         }
         function drawEyes(segment, x, y) {
             ctx.fillStyle = 'white';
