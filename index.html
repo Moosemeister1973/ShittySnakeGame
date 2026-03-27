@@ -386,6 +386,13 @@
 
         let direction = { x: 1, y: 0 };
 
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'm' && gamePaused) {
+                pauseMenu.style.display = 'none';
+                guiBackground.style.display = 'none';
+            }
+        })
+
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') { gamePause(); return; }
 
