@@ -190,10 +190,31 @@
                     // bounds check
                     if (nextX < 0 || nextX > 19 || nextY < 0 || nextY > 19) continue;
 
-                    // body check
+                    const nextIndex = hamiltonianCycle.findIndex(t => t.x === nextX && t.y === nextY);
+                    
+                    // body check - check not just next tile but a few tiles ahead
                     if (snake.some(seg => seg.x === nextX && seg.y === nextY)) continue;
 
-                    const nextIndex = hamiltonianCycle.findIndex(t => t.x === nextX && t.y === nextY);
+                    // lookahead - simulate 3 steps ahead following the cycle to make sure path stays clear
+                    let safe = true;
+                    let simIndex = nextIndex;
+                    const simSnake = [...snake];
+                    simSnake.unshift({ x: nextX, y: nextY });
+                    simSnake.pop();
+
+                    for (let step = 0; step < 3; step++) {
+                        simIndex = (simIndex + 1) % cycleLength;
+                        const simTile = hamiltonianCycle[simIndex];
+                        const checkSnake = simSnake.slice(0, simSnake.length - step - 1);
+                        if (checkSnake.some(seg => seg.x === simTile.x && seg.y === simTile.y)) {
+                            safe = false;
+                            break;
+                        }
+                    }
+
+                    if (!safe) continue;
+
+
                     const distToNext = (nextIndex - headIndex + cycleLength) % cycleLength;
 
                     // only allow shortcuts that don't skip past the apple in the cycle
