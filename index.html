@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Shitty Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #snakeCanvas {
+            position: absolute;
+            border: 5px;
+            border-color: silver;
+            border-style: solid;
+        }
+
+        div#scoreDisplayBackground {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 15%;
+            height: 15%;
+            background-color: rgba(95, 84, 84, 0.8);
+            border-radius: 25px;
+        }
+
+        div#scoreDisplay {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 15%;
+            height: 15%;
+            color: white;
+            text-align: center;
+            align-content: center;
+            background-color: rgba(0, 255, 0, 0);
+        }
+
+        div#guiBackground {
+            position: absolute;
+            top: 20%;
+            left: 30%;
+            width: 40%;
+            height: 60%;
+            background-color: rgba(95, 84, 84, 0.8);
+            border-radius: 50px;
+            filter: blur(20px);
+            display: inline-block;
+        }
+
+        div#pauseMenu {
+            position: absolute;
+            text-align: center;
+            align-content: center;
+            top: 25%;
+            left: 35%;
+            width: 30%;
+            height: 50%;
+            background-color: rgba(0, 255, 0, 0);
+            display: inline-block;
+        }
+
+        div#fail {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            align-content: center;
+            color: white;
+            background-color: rgb(156, 0, 0);
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="snakeCanvas" width="400px" height="400px"></canvas>
+    <div id="scoreDisplayBackground"></div>
+    <div id="scoreDisplay">
+        <h2>Score: <span id="spnScore">0</span></h2>
+        <h2>High Score: <span id="spnHighScore">0</span></h2>
+    </div>
+    <div id="guiBackground"></div>
+    <div id="pauseMenu">
+        <h1 style="color: white;">Game Paused</h1>
+        <h2 style="color: white;">Press any of WASD or arrow keys to continue.</h2>
+        <h2 style="color: white;">Press esc to pause the game at any time.</h2>
+    </div>
+    <div id="fail">
+        <h1 style="font-size: 10rem;">FAILURE</h1>
+        <h1>Your final score was: <span id="scoreOutput"></span></h1>
+        <h1>Highest score ever: <span id="highScoreOutput"></span></h1>
+        <h1>Press enter to restart.</h1>
+    </div>
+    <div id="win"
+        style="position: absolute; width: 100%; height: 100%; text-align: center; align-content: center; color: white; background-color: rgb(0, 156, 0); display: none;">
+        <h1 style="font-size: 10rem;">YOU WIN!</h1>
+        <h1>You achieved the maximum score of 397!</h1>
+        <h1>Press enter to restart.</h1>
+    </div>
+    <audio src="audio/useless.mp3" id="selfCrashSoundEffect"></audio>
+    <audio src="audio/AAAAAA.mp3" id="wallCrashSoundEffect"></audio>
+    <script>
+        const canvas = document.getElementById("snakeCanvas");
+        const ctx = canvas.getContext('2d');
+        const tileSize = 20;
+        const guiBackground = document.getElementById("guiBackground");
+        const pauseMenu = document.getElementById("pauseMenu");
+        const failScreen = document.getElementById("fail");
+        const scoreDisplay = document.getElementById("spnScore");
+        const highScoreDisplay = document.getElementById("spnHighScore");
+
+        const selfCrashSFX = document.getElementById("selfCrashSoundEffect");
+        const wallCrashSFX = document.getElementById("wallCrashSoundEffect");
+
+        let highScore = parseInt(localStorage.getItem("lsHighScore"));
+        if (highScore === null) {
+            localStorage.setItem("lsHighScore", 0);
+        } else {
+            highScoreDisplay.innerText = highScore;
+        }
+
+        let isDead = false;
+        let gamePaused = true;
+        let movementUsed = false;
+        let gameTick;
+        let score = 0;
+        const aiCode = ['o', 'n', 'i', 'o', 'n'];
+        let aiCodeProgress = 0;
+        let aiEnabled = false;
+
+        function buildHamiltonianCycle() {
+            const cycle = [];
+            const cols = canvas.width / tileSize;
+            const rows = canvas.height / tileSize;
+
+            // go down column 0
+            for (let row = 0; row < rows; row++) {
+                cycle.push({ x: 0, y: row });
+            }
+
+            // zigzag across remaining columns from bottom to top
+            for (let row = rows - 1; row >= 0; row--) {
+                if (row % 2 === 0) {
+                    // right to left (skip column 0)
+                    for (let col = cols - 1; col >= 1; col--) cycle.push({ x: col, y: row });
+                } else {
+                    // left to right (skip column 0)
+                    for (let col = 1; col < cols; col++) cycle.push({ x: col, y: row });
+                }
+            }
+
+            return cycle;
+        }
+
+        const hamiltonianCycle = buildHamiltonianCycle();
+
+        function getAIDirection() {
+            const headIndex = hamiltonianCycle.findIndex(
+                tile => tile.x === snake[0].x && tile.y === snake[0].y
+            );
+            const appleIndex = hamiltonianCycle.findIndex(
+                tile => tile.x === apple.x && tile.y === apple.y
+            );
+
+            const cycleLength = hamiltonianCycle.length;
+            const distToApple = (appleIndex - headIndex + cycleLength) % cycleLength;
+
+            // as snake grows, require a larger safety margin before attempting shortcuts
+            const snakeRatio = snake.length / cycleLength; // 0 to 1
+            const safetyThreshold = Math.floor(snakeRatio * cycleLength * 0.75);
+
+            if (distToApple > 1 && snake.length < cycleLength * 0.75) {
+                // build all possible moves sorted by proximity to apple
+                const candidates = [];
+                const directions = [
+                    { x: 1, y: 0 }, { x: -1, y: 0 },
+                    { x: 0, y: 1 }, { x: 0, y: -1 }
+                ];
+
+                for (const candidate of directions) {
+                    const nextX = snake[0].x + candidate.x;
+                    const nextY = snake[0].y + candidate.y;
+
+                    // bounds check
+                    if (nextX < 0 || nextX > 19 || nextY < 0 || nextY > 19) continue;
+
+                    // body check
+                    if (snake.some(seg => seg.x === nextX && seg.y === nextY)) continue;
+
+                    const nextIndex = hamiltonianCycle.findIndex(t => t.x === nextX && t.y === nextY);
+                    const distToNext = (nextIndex - headIndex + cycleLength) % cycleLength;
+
+                    // only allow shortcuts that don't skip past the apple in the cycle
+                    // and maintain a safety margin that grows with snake length
+                    if (distToNext <= distToApple && distToNext > safetyThreshold) {
+                        const manhattanToApple = Math.abs(nextX - apple.x) + Math.abs(nextY - apple.y);
+                        candidates.push({ candidate, distToNext, manhattanToApple });
+                    }
+                }
+
+                if (candidates.length > 0) {
+                    // pick the move that gets closest to the apple
+                    candidates.sort((a, b) => a.manhattanToApple - b.manhattanToApple);
+                    return candidates[0].candidate;
+                }
+            }
+
+            // fall back to hamiltonian cycle
+            const nextTile = hamiltonianCycle[(headIndex + 1) % cycleLength];
+            return { x: nextTile.x - snake[0].x, y: nextTile.y - snake[0].y };
+        }
+
+        function drawCheckerboard() {
+            for (let row = 0; row < canvas.height / tileSize; row++) {
+                for (let col = 0; col < canvas.width / tileSize; col++) {
+                    ctx.fillStyle = (row + col) % 2 === 0 ? '#b3b3b3' : '#ffffff';
+                    ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                }
+            }
+        }
+
+        const snake = [
+            { x: 10, y: 10 }, // head
+            { x: 9, y: 10 },
+            { x: 8, y: 10 },
+        ];
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? '#2d6a4f' : '#52b788'; // darker head
+                ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+            });
+        }
+        function randomApple(snake) {
+            const allTiles = [];
+            for (let x = 0; x < canvas.width / tileSize; x++) {
+                for (let y = 0; y < canvas.height / tileSize; y++) {
+                    if (!snake.some(segment => segment.x === x && segment.y === y)) {
+                        allTiles.push({ x, y });
+                    }
+                }
+            }
+
+            if (allTiles.length === 0) {
+                winGame();
+                return null;
+            }
+
+            return allTiles[Math.floor(Math.random() * allTiles.length)];
+        }
+
+        function winGame() {
+            clearInterval(gameTick);
+            document.getElementById("win").style.display = "inline-block";
+            document.addEventListener("keydown", (e) => {
+                if (e.key === 'Enter') location.reload();
+            }, { once: true });
+        }
+
+        let apple = randomApple(snake);
+
+        function drawApple() {
+            if (!apple) return;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(apple.x * tileSize, apple.y * tileSize, tileSize, tileSize);
+        }
+
+        let direction = { x: 1, y: 0 };
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') { gamePause(); return; }
+
+            if (movementUsed) return;
+            movementUsed = true;
+            switch (event.key) {
+                case 'ArrowUp': case 'w': if (direction.y !== 1) direction = { x: 0, y: -1 }; if (gamePaused) gamePause(); break;
+                case 'ArrowDown': case 's': if (direction.y !== -1) direction = { x: 0, y: 1 }; if (gamePaused) gamePause(); break;
+                case 'ArrowLeft': case 'a': if (direction.x !== 1) direction = { x: -1, y: 0 }; if (gamePaused) gamePause(); break;
+                case 'ArrowRight': case 'd': if (direction.x !== -1) direction = { x: 1, y: 0 }; if (gamePaused) gamePause(); break;
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!gamePaused) return;
+            if (e.key === aiCode[aiCodeProgress]) {
+                aiCodeProgress++;
+                if (aiCodeProgress === aiCode.length) {
+                    aiEnabled = true;
+                    aiCodeProgress = 0;
+                    pauseMenu.querySelector('h1').textContent = '🤖 AI Mode Activated!';
+                }
+            } else {
+                aiCodeProgress = 0;
+            }
+        });
+
+        drawSnake();
+        drawApple();
+
+        function snakeCrash() {
+            if (isDead) return;
+            isDead = true;
+            clearInterval(gameTick);
+            let destroySpeed = 250;
+            if (snake.length > 50) destroySpeed = 50;
+            else if (snake.length > 10) destroySpeed = 100;
+            const destroyTick = setInterval(() => {
+                if (snake.length > 0) {
+                    snake.shift();
+                    drawCheckerboard();
+                    drawApple();
+                    snake.forEach((segment) => {
+                        ctx.fillStyle = '#52b788';
+                        ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+                    });
+                } else {
+                    clearInterval(destroyTick);
+                    document.getElementById("scoreOutput").innerText = score;
+                    document.getElementById("highScoreOutput").innerText = highScore;
+                    failScreen.style.display = "inline-block";
+                    document.addEventListener("keydown", (e) => {
+                        if (e.key === 'Enter') location.reload();
+                    });
+                }
+            }, destroySpeed);
+        }
+
+        function update() {
+            // calculate new head position
+            if (aiEnabled) direction = getAIDirection();
+            const newHead = {
+                x: snake[0].x + direction.x,
+                y: snake[0].y + direction.y
+            };
+
+            // add new head to front of snake
+            snake.unshift(newHead);
+
+            // check if apple eaten
+            if (newHead.x === apple.x && newHead.y === apple.y) {
+                apple = randomApple(snake); // reposition apple
+                score++;
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreDisplay.innerText = highScore;
+                    localStorage.setItem("lsHighScore", highScore);
+                }
+                scoreDisplay.innerText = score;
+            } else {
+                snake.pop(); // remove tail (snake moves forward)
+            }
+
+            snake.forEach((segment, index) => {
+                if (index != 0 && newHead.x === segment.x && newHead.y === segment.y) {
+                    snakeCrash();
+                    console.log("selfCrash" + newHead)
+                    selfCrashSFX.play();
+                }
+            })
+
+            if (snake[0].x < 0 || snake[0].x > 19 || snake[0].y < 0 || snake[0].y > 19) {
+                snakeCrash();
+                wallCrashSFX.play();
+            }
+
+            movementUsed = false;
+        }
+
+        function gamePause() {
+            if (gamePaused == true) {
+                guiBackground.style.display = "none";
+                pauseMenu.style.display = "none";
+                gamePaused = false;
+                movementUsed = true; // block further input until first tick
+                gameTick = setInterval(() => {
+                    update();
+                    draw();
+                }, aiEnabled ? 15 : 150);
+                return;
+            }
+            else {
+                clearInterval(gameTick);
+                guiBackground.style.display = "inline-block";
+                pauseMenu.style.display = "inline-block";
+                gamePaused = true;
+                return;
+            }
+        }
+
+        function draw() {
+            drawCheckerboard();
+            drawApple();
+            drawSnake();
+        }
+        draw();
+
+    </script>
+</body>
+
+</html>
