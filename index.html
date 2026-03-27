@@ -119,7 +119,7 @@
         const wallCrashSFX = document.getElementById("wallCrashSoundEffect");
 
         let highScore = parseInt(localStorage.getItem("lsHighScore"));
-        if (highScore === null) {
+        if (highScore === null || isNaN(highScore)) {
             localStorage.setItem("lsHighScore", 0);
         } else {
             highScoreDisplay.innerText = highScore;
@@ -293,7 +293,7 @@
                 if (aiCodeProgress === aiCode.length) {
                     aiEnabled = true;
                     aiCodeProgress = 0;
-                    pauseMenu.querySelector('h1').textContent = '🤖 AI Mode Activated!';
+                    pauseMenu.querySelector('h1').textContent = 'NOT THE CHEESE';
                 }
             } else {
                 aiCodeProgress = 0;
@@ -381,7 +381,7 @@
                 gameTick = setInterval(() => {
                     update();
                     draw();
-                }, aiEnabled ? 15 : 150);
+                }, aiEnabled ? 1.5 : 150);
                 return;
             }
             else {
