@@ -268,7 +268,9 @@
         function drawApple() {
             if (!apple) return;
             ctx.fillStyle = 'red';
-            ctx.fillRect(apple.x * tileSize + 1, apple.y * tileSize + 1, tileSize - 2, tileSize -2);
+            ctx.fillRect(apple.x * tileSize + 3, apple.y * tileSize + 3, tileSize - 6, tileSize - 6);
+            ctx.fillStyle = 'brown';
+            ctx.fillRect(apple.x * tileSize + 8, apple.y * tileSize, tileSize - 14, tileSize - 16);
         }
 
         let direction = { x: 1, y: 0 };
