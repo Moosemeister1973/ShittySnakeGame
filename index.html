@@ -216,6 +216,13 @@
             return { x: nextTile.x - snake[0].x, y: nextTile.y - snake[0].y };
         }
 
+        function drawRoundedRect(x, y, size, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, size, size, radius);
+            ctx.fill();
+        }
+
         function drawCheckerboard() {
             for (let row = 0; row < canvas.height / tileSize; row++) {
                 for (let col = 0; col < canvas.width / tileSize; col++) {
@@ -233,9 +240,86 @@
 
         function drawSnake() {
             snake.forEach((segment, index) => {
-                ctx.fillStyle = index === 0 ? '#2d6a4f' : '#52b788'; // darker head
-                ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+                const x = segment.x * tileSize;
+                const y = segment.y * tileSize;
+
+                if (index === 0) {
+                    drawRoundedRect(x, y, tileSize, 6, '#2d6a4f');
+                    drawTongue(x, y);
+                    drawEyes(segment, x, y);
+                } else if (index === snake.length - 1) {
+                    // tail - more rounded to look tapered
+                    drawRoundedRect(x + 2, y + 2, tileSize - 4, 8, '#52b788');
+                } else {
+                    // body
+                    drawRoundedRect(x + 1, y + 1, tileSize - 2, 4, '#52b788');
+                }
             });
+        }
+        function drawEyes(segment, x, y) {
+            ctx.fillStyle = 'white';
+
+            let eye1 = { x: 0, y: 0 };
+            let eye2 = { x: 0, y: 0 };
+
+            if (direction.x === 1) { // moving right
+                eye1 = { x: x + 14, y: y + 4 };
+                eye2 = { x: x + 14, y: y + 12 };
+            } else if (direction.x === -1) { // moving left
+                eye1 = { x: x + 2, y: y + 4 };
+                eye2 = { x: x + 2, y: y + 12 };
+            } else if (direction.y === -1) { // moving up
+                eye1 = { x: x + 4, y: y + 2 };
+                eye2 = { x: x + 12, y: y + 2 };
+            } else { // moving down
+                eye1 = { x: x + 4, y: y + 14 };
+                eye2 = { x: x + 12, y: y + 14 };
+            }
+
+            // white of eye
+            ctx.beginPath();
+            ctx.arc(eye1.x, eye1.y, 3, 0, Math.PI * 2);
+            ctx.arc(eye2.x, eye2.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // pupil
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(eye1.x, eye1.y, 1.5, 0, Math.PI * 2);
+            ctx.arc(eye2.x, eye2.y, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        function drawTongue(x, y) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+
+            if (direction.x === 1) { // right
+                ctx.moveTo(x + tileSize, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 6, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 9, y + tileSize / 2 - 3);
+                ctx.moveTo(x + tileSize + 6, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 9, y + tileSize / 2 + 3);
+            } else if (direction.x === -1) { // left
+                ctx.moveTo(x, y + tileSize / 2);
+                ctx.lineTo(x - 6, y + tileSize / 2);
+                ctx.lineTo(x - 9, y + tileSize / 2 - 3);
+                ctx.moveTo(x - 6, y + tileSize / 2);
+                ctx.lineTo(x - 9, y + tileSize / 2 + 3);
+            } else if (direction.y === -1) { // up
+                ctx.moveTo(x + tileSize / 2, y);
+                ctx.lineTo(x + tileSize / 2, y - 6);
+                ctx.lineTo(x + tileSize / 2 - 3, y - 9);
+                ctx.moveTo(x + tileSize / 2, y - 6);
+                ctx.lineTo(x + tileSize / 2 + 3, y - 9);
+            } else { // down
+                ctx.moveTo(x + tileSize / 2, y + tileSize);
+                ctx.lineTo(x + tileSize / 2, y + tileSize + 6);
+                ctx.lineTo(x + tileSize / 2 - 3, y + tileSize + 9);
+                ctx.moveTo(x + tileSize / 2, y + tileSize + 6);
+                ctx.lineTo(x + tileSize / 2 + 3, y + tileSize + 9);
+            }
+            ctx.stroke();
         }
         function randomApple(snake) {
             const allTiles = [];
@@ -405,4 +489,4 @@
     </script>
 </body>
 
-</html> 
+</html>
