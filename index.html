@@ -190,10 +190,31 @@
                     // bounds check
                     if (nextX < 0 || nextX > 19 || nextY < 0 || nextY > 19) continue;
 
-                    // body check
+                    const nextIndex = hamiltonianCycle.findIndex(t => t.x === nextX && t.y === nextY);
+
+                    // body check - check not just next tile but a few tiles ahead
                     if (snake.some(seg => seg.x === nextX && seg.y === nextY)) continue;
 
-                    const nextIndex = hamiltonianCycle.findIndex(t => t.x === nextX && t.y === nextY);
+                    // lookahead - simulate 3 steps ahead following the cycle to make sure path stays clear
+                    let safe = true;
+                    let simIndex = nextIndex;
+                    const simSnake = [...snake];
+                    simSnake.unshift({ x: nextX, y: nextY });
+                    simSnake.pop();
+
+                    for (let step = 0; step < 3; step++) {
+                        simIndex = (simIndex + 1) % cycleLength;
+                        const simTile = hamiltonianCycle[simIndex];
+                        const checkSnake = simSnake.slice(0, simSnake.length - step - 1);
+                        if (checkSnake.some(seg => seg.x === simTile.x && seg.y === simTile.y)) {
+                            safe = false;
+                            break;
+                        }
+                    }
+
+                    if (!safe) continue;
+
+
                     const distToNext = (nextIndex - headIndex + cycleLength) % cycleLength;
 
                     // only allow shortcuts that don't skip past the apple in the cycle
@@ -239,10 +260,119 @@
         ];
 
         function drawSnake() {
-            snake.forEach((segment, index) => {
-                ctx.fillStyle = index === 0 ? '#2d6a4f' : '#52b788'; // darker head
-                ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
-            });
+            const maxWidth = tileSize - 2;
+            const minWidth = 4;
+
+            // draw connections between segments first (so they appear behind)
+            for (let i = 0; i < snake.length - 1; i++) {
+                const curr = snake[i];
+                const next = snake[i + 1];
+                const t = i / snake.length;
+                const width = maxWidth - (maxWidth - minWidth) * t;
+
+                const x1 = curr.x * tileSize + tileSize / 2;
+                const y1 = curr.y * tileSize + tileSize / 2;
+                const x2 = next.x * tileSize + tileSize / 2;
+                const y2 = next.y * tileSize + tileSize / 2;
+
+                ctx.strokeStyle = '#52b788';
+                ctx.lineWidth = width;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            // draw each segment as a circle on top of connections
+            for (let i = snake.length - 1; i >= 0; i--) {
+                const segment = snake[i];
+                const t = i / snake.length;
+                const radius = (maxWidth - (maxWidth - minWidth) * t) / 2;
+                const x = segment.x * tileSize + tileSize / 2;
+                const y = segment.y * tileSize + tileSize / 2;
+                if (isDead) {
+                    ctx.fillStyle = '#52b788';
+                } else {
+                    ctx.fillStyle = i === 0 ? '#2d6a4f' : '#52b788';
+                }
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // draw head features on top
+            const headX = snake[0].x * tileSize;
+            const headY = snake[0].y * tileSize;
+            if (!isDead) {
+                drawTongue(headX, headY);
+                drawEyes(snake[0], headX, headY);
+            }
+        }
+        function drawEyes(segment, x, y) {
+            ctx.fillStyle = 'white';
+
+            let eye1 = { x: 0, y: 0 };
+            let eye2 = { x: 0, y: 0 };
+
+            if (direction.x === 1) { // moving right
+                eye1 = { x: x + 14, y: y + 4 };
+                eye2 = { x: x + 14, y: y + 12 };
+            } else if (direction.x === -1) { // moving left
+                eye1 = { x: x + 2, y: y + 4 };
+                eye2 = { x: x + 2, y: y + 12 };
+            } else if (direction.y === -1) { // moving up
+                eye1 = { x: x + 4, y: y + 2 };
+                eye2 = { x: x + 12, y: y + 2 };
+            } else { // moving down
+                eye1 = { x: x + 4, y: y + 14 };
+                eye2 = { x: x + 12, y: y + 14 };
+            }
+
+            // white of eye
+            ctx.beginPath();
+            ctx.arc(eye1.x, eye1.y, 3, 0, Math.PI * 2);
+            ctx.arc(eye2.x, eye2.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // pupil
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(eye1.x, eye1.y, 1.5, 0, Math.PI * 2);
+            ctx.arc(eye2.x, eye2.y, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        function drawTongue(x, y) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+
+            if (direction.x === 1) { // right
+                ctx.moveTo(x + tileSize, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 6, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 9, y + tileSize / 2 - 3);
+                ctx.moveTo(x + tileSize + 6, y + tileSize / 2);
+                ctx.lineTo(x + tileSize + 9, y + tileSize / 2 + 3);
+            } else if (direction.x === -1) { // left
+                ctx.moveTo(x, y + tileSize / 2);
+                ctx.lineTo(x - 6, y + tileSize / 2);
+                ctx.lineTo(x - 9, y + tileSize / 2 - 3);
+                ctx.moveTo(x - 6, y + tileSize / 2);
+                ctx.lineTo(x - 9, y + tileSize / 2 + 3);
+            } else if (direction.y === -1) { // up
+                ctx.moveTo(x + tileSize / 2, y);
+                ctx.lineTo(x + tileSize / 2, y - 6);
+                ctx.lineTo(x + tileSize / 2 - 3, y - 9);
+                ctx.moveTo(x + tileSize / 2, y - 6);
+                ctx.lineTo(x + tileSize / 2 + 3, y - 9);
+            } else { // down
+                ctx.moveTo(x + tileSize / 2, y + tileSize);
+                ctx.lineTo(x + tileSize / 2, y + tileSize + 6);
+                ctx.lineTo(x + tileSize / 2 - 3, y + tileSize + 9);
+                ctx.moveTo(x + tileSize / 2, y + tileSize + 6);
+                ctx.lineTo(x + tileSize / 2 + 3, y + tileSize + 9);
+            }
+            ctx.stroke();
         }
         function randomApple(snake) {
             const allTiles = [];
@@ -281,6 +411,13 @@
         }
 
         let direction = { x: 1, y: 0 };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'm' && gamePaused) {
+                pauseMenu.style.display = 'none';
+                guiBackground.style.display = 'none';
+            }
+        })
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') { gamePause(); return; }
@@ -324,10 +461,7 @@
                     snake.shift();
                     drawCheckerboard();
                     drawApple();
-                    snake.forEach((segment) => {
-                        ctx.fillStyle = '#52b788';
-                        ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
-                    });
+                    drawSnake();
                 } else {
                     clearInterval(destroyTick);
                     document.getElementById("scoreOutput").innerText = score;
