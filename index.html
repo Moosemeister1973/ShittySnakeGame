@@ -461,9 +461,7 @@
                     snake.shift();
                     drawCheckerboard();
                     drawApple();
-                    snake.forEach((segment, index) => {
-                        drawSnake();
-                    });
+                    drawSnake();
                 } else {
                     clearInterval(destroyTick);
                     document.getElementById("scoreOutput").innerText = score;
