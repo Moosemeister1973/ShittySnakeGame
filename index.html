@@ -216,6 +216,13 @@
             return { x: nextTile.x - snake[0].x, y: nextTile.y - snake[0].y };
         }
 
+        function drawRoundedRect(x, y, size, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(x, y, size, size, radius);
+            ctx.fill();
+        }
+
         function drawCheckerboard() {
             for (let row = 0; row < canvas.height / tileSize; row++) {
                 for (let col = 0; col < canvas.width / tileSize; col++) {
@@ -405,4 +412,4 @@
     </script>
 </body>
 
-</html> 
+</html>
