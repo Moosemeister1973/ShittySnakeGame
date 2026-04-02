@@ -457,8 +457,7 @@
                     drawCheckerboard();
                     drawApple();
                     snake.forEach((segment, index) => {
-                        ctx.fillStyle = index === 0 ? '#2d6a4f' : '#52b788';
-                        ctx.fillRect(segment.x * tileSize + 1, segment.y * tileSize + 1, tileSize - 2, tileSize - 2);
+                        drawSnake();
                     });
                 } else {
                     clearInterval(destroyTick);
