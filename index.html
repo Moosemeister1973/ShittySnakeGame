@@ -304,8 +304,10 @@
             // draw head features on top
             const headX = snake[0].x * tileSize;
             const headY = snake[0].y * tileSize;
-            drawTongue(headX, headY);
-            drawEyes(snake[0], headX, headY);
+            if (!isDead) {
+                drawTongue(headX, headY);
+                drawEyes(snake[0], headX, headY);
+            }
         }
         function drawEyes(segment, x, y) {
             ctx.fillStyle = 'white';
