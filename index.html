@@ -291,8 +291,11 @@
                 const radius = (maxWidth - (maxWidth - minWidth) * t) / 2;
                 const x = segment.x * tileSize + tileSize / 2;
                 const y = segment.y * tileSize + tileSize / 2;
-
-                ctx.fillStyle = i === 0 ? '#2d6a4f' : '#52b788';
+                if (isDead) {
+                    ctx.fillStyle = '#52b788';
+                } else {
+                    ctx.fillStyle = i === 0 ? '#2d6a4f' : '#52b788';
+                }
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, Math.PI * 2);
                 ctx.fill();
