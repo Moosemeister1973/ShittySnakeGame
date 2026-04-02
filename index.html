@@ -75,6 +75,17 @@
             background-color: rgb(156, 0, 0);
             display: none;
         }
+
+        div#skinSelector {
+            position: relative;
+            width: 100%;
+            height: 20%;
+            text-align: center;
+            align-content: center;
+            color: white;
+            background-color: transparent;
+            display: inline-block;
+        }
     </style>
 </head>
 
@@ -90,6 +101,12 @@
         <h1 style="color: white;">Game Paused</h1>
         <h2 style="color: white;">Press any of WASD or arrow keys to continue.</h2>
         <h2 style="color: white;">Press esc to pause the game at any time.</h2>
+        <div id="skinSelector">
+            <h3 style="color: white;">Select your skin:</h3>
+            <p style="color: white;">
+                <select id="skinSelect"></select>
+            </p>
+        </div>
     </div>
     <div id="fail">
         <h1 style="font-size: 10rem;">FAILURE</h1>
@@ -133,6 +150,36 @@
         const aiCode = ['o', 'n', 'i', 'o', 'n'];
         let aiCodeProgress = 0;
         let aiEnabled = false;
+
+        const skins = {
+            green: { even: '#52b788', odd: '#40916c', head: '#2d6a4f' },
+            red: { even: '#e63946', odd: '#c1121f', head: '#9b0000' },
+            blue: { even: '#4895ef', odd: '#3a78c9', head: '#2563a8' },
+            yellow: { even: '#f4cc30', odd: '#d4a800', head: '#a07800' },
+            purple: { even: '#9b5de5', odd: '#7b2fd4', head: '#5a0fb0' },
+            black: { even: '#444444', odd: '#222222', head: '#111111' },
+        };
+
+        const guiSkinSelector = document.getElementById("skinSelector");
+        const skinSelect = document.getElementById("skinSelect");
+
+        let options = "";
+
+        Object.keys(skins).forEach(key => {
+            options += `<option value="${key}">${key}</option>`;
+        });
+
+        skinSelect.innerHTML = options;
+        skinSelect.value = localStorage.getItem("activeSkin") ?? "green";
+
+        skinSelect.addEventListener("change", (e) => {
+            const selected = e.target.value;
+            activeSkin = skins[selected];
+            localStorage.setItem("activeSkin", selected);
+        });
+
+        const savedSkin = localStorage.getItem("activeSkin");
+        let activeSkin = skins[savedSkin] || skins.green;
 
         function buildHamiltonianCycle() {
             const cycle = [];
@@ -275,7 +322,7 @@
                 const x2 = next.x * tileSize + tileSize / 2;
                 const y2 = next.y * tileSize + tileSize / 2;
 
-                ctx.strokeStyle = '#52b788';
+                ctx.strokeStyle = activeSkin.even;
                 ctx.lineWidth = width;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
@@ -291,11 +338,19 @@
                 const radius = (maxWidth - (maxWidth - minWidth) * t) / 2;
                 const x = segment.x * tileSize + tileSize / 2;
                 const y = segment.y * tileSize + tileSize / 2;
+                let fillColour;
+
                 if (isDead) {
-                    ctx.fillStyle = '#52b788';
+                    fillColour = i % 2 === 0 ? activeSkin.even : activeSkin.odd;
                 } else {
-                    ctx.fillStyle = i === 0 ? '#2d6a4f' : '#52b788';
+                    if (i === 0) {
+                        fillColour = activeSkin.head;
+                    } else {
+                        fillColour = i % 2 === 0 ? activeSkin.even : activeSkin.odd;
+                    }
                 }
+
+                ctx.fillStyle = fillColour;
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, Math.PI * 2);
                 ctx.fill();
@@ -516,9 +571,11 @@
         }
 
         function gamePause() {
+            if (isDead) return;
             if (gamePaused == true) {
                 guiBackground.style.display = "none";
                 pauseMenu.style.display = "none";
+                guiSkinSelector.style.display = "none";
                 gamePaused = false;
                 movementUsed = true; // block further input until first tick
                 gameTick = setInterval(() => {
